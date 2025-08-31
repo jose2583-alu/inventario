@@ -1,6 +1,22 @@
 <?php
 include("conexion.php");
 
+// Función para calcular el dígito verificador EAN-13
+function calcularDigitoVerificadorEAN13($codigo) {
+    // Asegurar que el código tenga exactamente 12 dígitos
+    $codigo = str_pad(substr($codigo, 0, 12), 12, "0", STR_PAD_LEFT);
+    
+    $suma = 0;
+    for ($i = 0; $i < 12; $i++) {
+        $digito = intval($codigo[$i]);
+        // Multiplicar por 1 las posiciones impares y por 3 las pares
+        $suma += ($i % 2 == 0) ? $digito : $digito * 3;
+    }
+    
+    $digitoVerificador = (10 - ($suma % 10)) % 10;
+    return $codigo . $digitoVerificador;
+}
+
 // === Registrar nuevo empleado ===
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['registrar_empleado'])) {
     $nombre = $_POST['nombre'];
@@ -82,10 +98,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
     // Generar código automáticamente si está vacío
     if (empty($codigo)) {
         do {
-            $codigo = str_pad(rand(100000000000, 999999999999), 12, "0", STR_PAD_LEFT);
+            // Generar 12 dígitos base
+            $codigoBase = str_pad(rand(100000000000, 999999999999), 12, "0", STR_PAD_LEFT);
+            // Calcular EAN-13 completo con dígito verificador
+            $codigo = calcularDigitoVerificadorEAN13($codigoBase);
             $check = $conn->query("SELECT id FROM productos WHERE codigo_barras='$codigo'");
         } while ($check->num_rows > 0);
     } else {
+        // Si el usuario proporciona un código, validar y completar si es necesario
+        $codigo = preg_replace('/[^0-9]/', '', $codigo); // Solo números
+        
+        if (strlen($codigo) == 12) {
+            // Si tiene 12 dígitos, calcular el dígito verificador
+            $codigo = calcularDigitoVerificadorEAN13($codigo);
+        } elseif (strlen($codigo) == 13) {
+            // Si tiene 13 dígitos, verificar que el dígito verificador sea correcto
+            $codigoBase = substr($codigo, 0, 12);
+            $codigoCalculado = calcularDigitoVerificadorEAN13($codigoBase);
+            if ($codigo !== $codigoCalculado) {
+                echo "<p style='color:red;'>Error: El código EAN-13 proporcionado no tiene un dígito verificador válido. 
+                      El código correcto sería: <strong>$codigoCalculado</strong></p>";
+                $codigo = $codigoCalculado;
+            }
+        } else {
+            echo "<p style='color:red;'>Error: El código debe tener 12 o 13 dígitos.</p>";
+            return;
+        }
+        
         // Verificar que el código no exista
         $check = $conn->query("SELECT id FROM productos WHERE codigo_barras='$codigo'");
         if ($check->num_rows > 0) {
@@ -98,7 +137,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
     if (!isset($check) || $check->num_rows == 0) {
         $sql = "INSERT INTO productos (nombre, codigo_barras, cantidad) VALUES ('$nombre','$codigo','$cantidad')";
         if (mysqli_query($conn, $sql)) {
-            echo "<p style='color:blue;'>Producto agregado con éxito. Código generado: <b>$codigo</b></p>";
+            echo "<p style='color:blue;'>Producto agregado con éxito. Código EAN-13 válido: <b>$codigo</b></p>";
             header("Location: admin.php");
             exit;
         } else {
@@ -268,13 +307,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
             <div style="margin-bottom: 15px;">
                 <input type="text" name="nombre" placeholder="Nombre del producto" required 
                        style="padding: 8px; width: 250px; margin-right: 10px;">
-                <input type="text" name="codigo" placeholder="Código de barras (opcional)" 
-                       style="padding: 8px; width: 200px; margin-right: 10px;">
+                <input type="text" name="codigo" placeholder="Código EAN-13 (12 o 13 dígitos)" 
+                       style="padding: 8px; width: 220px; margin-right: 10px;" maxlength="13">
                 <input type="number" name="cantidad" placeholder="Cantidad inicial" required 
                        style="padding: 8px; width: 150px; margin-right: 10px;">
                 <button type="submit" name="agregar_producto" class="btn btn-primary">Guardar</button>
             </div>
-            <small style="color: #666;">Si no ingresas un código de barras, se generará uno automáticamente.</small>
+            <small style="color: #666;">Puedes ingresar 12 o 13 dígitos. Si ingresas 12, se calculará automáticamente el dígito verificador. Si no ingresas nada, se generará un código EAN-13 completo.</small>
         </form>
     </div>
 
@@ -286,7 +325,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
                 <tr>
                     <th>ID</th>
                     <th>Nombre</th>
-                    <th>Código de Barras</th>
+                    <th>Código de Barras EAN-13</th>
                     <th>Cantidad</th>
                     <th class="actions-column">Acciones</th>
                 </tr>
@@ -309,7 +348,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
                                 <form method='POST' class='form-inline' style='margin-bottom: 5px;'>
                                     <input type='hidden' name='id' value='".$row['id']."'>
                                     <input type='text' name='nombre' value='".$row['nombre']."' required style='width:120px; margin-right: 5px;'>
-                                    <input type='text' name='codigo_barras' value='".$row['codigo_barras']."' required style='width: 100px; margin-right: 5px;'>
+                                    <input type='text' name='codigo_barras' value='".$row['codigo_barras']."' required style='width: 110px; margin-right: 5px;' maxlength='13'>
                                     <input type='number' name='cantidad' value='".$row['cantidad']."' required style='width: 60px; margin-right: 5px;'>
                                     <button type='submit' name='editar_producto' class='btn btn-success'>Guardar</button>
                                 </form>
@@ -370,8 +409,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Validación para códigos de barras de 13 dígitos
+    const codigoInputs = document.querySelectorAll('input[name="codigo"], input[name="codigo_barras"]');
+    codigoInputs.forEach(input => {
+        input.addEventListener('input', function(e) {
+            // Solo permitir números
+            this.value = this.value.replace(/[^0-9]/g, '');
+            // Limitar a 13 caracteres
+            if (this.value.length > 13) {
+                this.value = this.value.slice(0, 13);
+            }
+        });
+    });
 });
 </script>
-
 </body>
 </html>
