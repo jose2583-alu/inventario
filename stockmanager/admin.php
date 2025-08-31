@@ -5,8 +5,11 @@ include("conexion.php");
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['registrar_empleado'])) {
     $nombre = $_POST['nombre'];
 
-    // Generar código de 4 dígitos aleatorio fijo
-    $codigo = str_pad(rand(0, 9999), 4, "0", STR_PAD_LEFT);
+    // Generar código de 4 dígitos aleatorio único
+    do {
+        $codigo = str_pad(rand(0, 9999), 4, "0", STR_PAD_LEFT);
+        $check = $conn->query("SELECT id FROM empleados WHERE codigo='$codigo'");
+    } while ($check->num_rows > 0);
 
     $sql = "INSERT INTO empleados (codigo, nombre) VALUES ('$codigo', '$nombre')";
     if (mysqli_query($conn, $sql)) {
@@ -17,9 +20,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['registrar_empleado']))
 }
 
 // === Eliminar empleado ===
-if (isset($_GET['eliminar'])) {
-    $id = intval($_GET['eliminar']);
+if (isset($_GET['eliminar_empleado'])) {
+    $id = intval($_GET['eliminar_empleado']);
     $sql = "DELETE FROM empleados WHERE id=$id";
+    if (mysqli_query($conn, $sql)) {
+        header("Location: admin.php");
+        exit;
+    } else {
+        echo "Error: " . mysqli_error($conn);
+    }
+}
+
+// === Eliminar producto ===
+if (isset($_GET['eliminar_producto'])) {
+    $id = intval($_GET['eliminar_producto']);
+    $sql = "DELETE FROM productos WHERE id=$id";
     if (mysqli_query($conn, $sql)) {
         header("Location: admin.php");
         exit;
@@ -31,7 +46,7 @@ if (isset($_GET['eliminar'])) {
 // === Editar empleado ===
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['editar_empleado'])) {
     $id = intval($_POST['id']);
-    $nombre = $_POST['nombre'];
+    $nombre = mysqli_real_escape_string($conn, $_POST['nombre']);
 
     $sql = "UPDATE empleados SET nombre='$nombre' WHERE id=$id";
     if (mysqli_query($conn, $sql)) {
@@ -42,19 +57,53 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['editar_empleado'])) {
     }
 }
 
-// === Agregar producto ===
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
-    $nombre = $_POST["nombre"];
-    $codigo = $_POST["codigo"];
-    $cantidad = $_POST["cantidad"];
+// === Editar producto ===
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['editar_producto'])) {
+    $id = intval($_POST['id']);
+    $nombre = mysqli_real_escape_string($conn, $_POST['nombre']);
+    $codigo = mysqli_real_escape_string($conn, $_POST['codigo_barras']);
+    $cantidad = intval($_POST['cantidad']);
 
-    $sql = "INSERT INTO productos (nombre, codigo_barras, cantidad) VALUES ('$nombre','$codigo','$cantidad')";
+    $sql = "UPDATE productos SET nombre='$nombre', codigo_barras='$codigo', cantidad=$cantidad WHERE id=$id";
     if (mysqli_query($conn, $sql)) {
-        echo "<p style='color:blue;'>Producto agregado con éxito.</p>";
         header("Location: admin.php");
         exit;
     } else {
         echo "Error: " . mysqli_error($conn);
+    }
+}
+
+// === Agregar producto ===
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
+    $nombre = mysqli_real_escape_string($conn, $_POST["nombre"]);
+    $codigo = $_POST["codigo"];
+    $cantidad = intval($_POST["cantidad"]);
+    
+    // Generar código automáticamente si está vacío
+    if (empty($codigo)) {
+        do {
+            $codigo = str_pad(rand(100000000000, 999999999999), 12, "0", STR_PAD_LEFT);
+            $check = $conn->query("SELECT id FROM productos WHERE codigo_barras='$codigo'");
+        } while ($check->num_rows > 0);
+    } else {
+        // Verificar que el código no exista
+        $check = $conn->query("SELECT id FROM productos WHERE codigo_barras='$codigo'");
+        if ($check->num_rows > 0) {
+            echo "<p style='color:red;'>Error: El código de barras ya existe.</p>";
+        } else {
+            $codigo = mysqli_real_escape_string($conn, $codigo);
+        }
+    }
+
+    if (!isset($check) || $check->num_rows == 0) {
+        $sql = "INSERT INTO productos (nombre, codigo_barras, cantidad) VALUES ('$nombre','$codigo','$cantidad')";
+        if (mysqli_query($conn, $sql)) {
+            echo "<p style='color:blue;'>Producto agregado con éxito. Código generado: <b>$codigo</b></p>";
+            header("Location: admin.php");
+            exit;
+        } else {
+            echo "Error: " . mysqli_error($conn);
+        }
     }
 }
 ?>
@@ -66,58 +115,263 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
     <link rel="stylesheet" href="assets/css/admin.css">
     <link rel="stylesheet" href="assets/css/agregar_producto.css">
     <link rel="icon" href="assets/img/ad.png" type="image/png">
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 2px;
+        }
+        
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-warning { background: #ffc107; color: black; }
+        
+        .form-inline {
+            display: inline-block;
+            margin: 0 5px;
+        }
+        
+        .form-inline input {
+            margin-right: 5px;
+            padding: 4px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        
+        .actions-column {
+            min-width: 200px;
+        }
+        
+        @media (max-width: 768px) {
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+            
+            thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+            
+            tr {
+                border: 1px solid #ccc;
+                margin-bottom: 10px;
+                padding: 10px;
+            }
+            
+            td {
+                border: none;
+                position: relative;
+                padding-left: 50%;
+            }
+            
+            td:before {
+                content: attr(data-label) ": ";
+                position: absolute;
+                left: 6px;
+                width: 45%;
+                padding-right: 10px;
+                white-space: nowrap;
+                font-weight: bold;
+            }
+        }
+    </style>
 </head>
 <body>
 <div class="container">
     <h1>Panel de Administrador</h1>
 
     <!-- Registrar empleado -->
-    <h2>Registrar Empleado</h2>
-    <form method="POST">
-        <input type="text" name="nombre" placeholder="Nombre completo" required>
-        <button type="submit" name="registrar_empleado">Registrar</button>
-    </form>
+    <div class="section">
+        <h2>Registrar Empleado</h2>
+        <form method="POST">
+            <input type="text" name="nombre" placeholder="Nombre completo" required style="padding: 8px; margin-right: 10px;">
+            <button type="submit" name="registrar_empleado" class="btn btn-primary">Registrar</button>
+        </form>
+    </div>
 
     <!-- Lista de empleados -->
-    <h2>Lista de Empleados</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Código</th>
-                <th>Nombre</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php
-            $result = mysqli_query($conn, "SELECT * FROM empleados ORDER BY id DESC");
-            while ($row = mysqli_fetch_assoc($result)) {
-                echo "<tr>
-                        <td data-label='ID'>".$row['id']."</td>
-                        <td data-label='Código'>".$row['codigo']."</td>
-                        <td data-label='Nombre'>".$row['nombre']."</td>
-                        <td data-label='Acciones'>
-                            <form method='POST' style='display:inline-block; margin-bottom:5px;'>
-                                <input type='hidden' name='id' value='".$row['id']."'>
-                                <input type='text' name='nombre' value='".$row['nombre']."' required>
-                                <button type='submit' name='editar_empleado'>Guardar</button>
-                            </form>
-                        </td>
-                      </tr>";
-            }
-            ?>
-        </tbody>
-    </table>
+    <div class="section">
+        <h2>Lista de Empleados</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th class="actions-column">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $result = mysqli_query($conn, "SELECT * FROM empleados ORDER BY id DESC");
+                while ($row = mysqli_fetch_assoc($result)) {
+                    echo "<tr>
+                            <td data-label='ID'>".$row['id']."</td>
+                            <td data-label='Código'><strong>".$row['codigo']."</strong></td>
+                            <td data-label='Nombre'>".$row['nombre']."</td>
+                            <td data-label='Acciones' class='actions-column'>
+                                <form method='POST' class='form-inline'>
+                                    <input type='hidden' name='id' value='".$row['id']."'>
+                                    <input type='text' name='nombre' value='".$row['nombre']."' required style='width:150px;'>
+                                    <button type='submit' name='editar_empleado' class='btn btn-success'>Guardar</button>
+                                </form>
+                                <a href='admin.php?eliminar_empleado=".$row['id']."' 
+                                   onclick='return confirm(\"¿Eliminar empleado?\")' 
+                                   class='btn btn-danger'>Eliminar</a>
+                            </td>
+                          </tr>";
+                }
+                ?>
+            </tbody>
+        </table>
+    </div>
 
     <!-- Agregar producto -->
-    <h2>Agregar Producto</h2>
-    <form method="POST">
-        <input type="text" name="nombre" placeholder="Nombre del producto" required><br><br>
-        <input type="text" name="codigo" placeholder="Código de barras"><br><br>
-        <input type="number" name="cantidad" placeholder="Cantidad inicial" required><br><br>
-        <button type="submit" name="agregar_producto">Guardar</button>
-    </form>
+    <div class="section">
+        <h2>Agregar Producto</h2>
+        <form method="POST">
+            <div style="margin-bottom: 15px;">
+                <input type="text" name="nombre" placeholder="Nombre del producto" required 
+                       style="padding: 8px; width: 250px; margin-right: 10px;">
+                <input type="text" name="codigo" placeholder="Código de barras (opcional)" 
+                       style="padding: 8px; width: 200px; margin-right: 10px;">
+                <input type="number" name="cantidad" placeholder="Cantidad inicial" required 
+                       style="padding: 8px; width: 150px; margin-right: 10px;">
+                <button type="submit" name="agregar_producto" class="btn btn-primary">Guardar</button>
+            </div>
+            <small style="color: #666;">Si no ingresas un código de barras, se generará uno automáticamente.</small>
+        </form>
+    </div>
+
+    <!-- Lista de productos -->
+    <div class="section">
+        <h2>Lista de Productos</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Código de Barras</th>
+                    <th>Cantidad</th>
+                    <th class="actions-column">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $result = mysqli_query($conn, "SELECT * FROM productos ORDER BY id DESC");
+                while ($row = mysqli_fetch_assoc($result)) {
+                    echo "<tr>
+                            <td data-label='ID'>".$row['id']."</td>
+                            <td data-label='Nombre'>".$row['nombre']."</td>
+                            <td data-label='Código'><strong>".$row['codigo_barras']."</strong></td>
+                            <td data-label='Cantidad'>
+                                <span style='background: ".($row['cantidad'] > 10 ? '#28a745' : ($row['cantidad'] > 0 ? '#ffc107' : '#dc3545'))."; 
+                                      color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px;'>
+                                    ".$row['cantidad']."
+                                </span>
+                            </td>
+                            <td data-label='Acciones' class='actions-column'>
+                                <form method='POST' class='form-inline' style='margin-bottom: 5px;'>
+                                    <input type='hidden' name='id' value='".$row['id']."'>
+                                    <input type='text' name='nombre' value='".$row['nombre']."' required style='width:120px; margin-right: 5px;'>
+                                    <input type='text' name='codigo_barras' value='".$row['codigo_barras']."' required style='width: 100px; margin-right: 5px;'>
+                                    <input type='number' name='cantidad' value='".$row['cantidad']."' required style='width: 60px; margin-right: 5px;'>
+                                    <button type='submit' name='editar_producto' class='btn btn-success'>Guardar</button>
+                                </form>
+                                <a href='admin.php?eliminar_producto=".$row['id']."' 
+                                   onclick='return confirm(\"¿Eliminar producto?\")' 
+                                   class='btn btn-danger'>Eliminar</a>
+                            </td>
+                          </tr>";
+                }
+                ?>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Estadísticas rápidas -->
+    <div class="section">
+        <h2>Estadísticas</h2>
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <?php
+            $totalEmpleados = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM empleados"))['total'];
+            $totalProductos = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM productos"))['total'];
+            $productosStockBajo = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM productos WHERE cantidad <= 5"))['total'];
+            $totalMovimientos = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM movimientos"))['total'];
+            ?>
+            
+            <div style="background: #007bff; color: white; padding: 15px; border-radius: 8px; text-align: center; min-width: 120px;">
+                <h3 style="margin: 0; font-size: 24px;"><?php echo $totalEmpleados; ?></h3>
+                <p style="margin: 5px 0 0 0;">Empleados</p>
+            </div>
+            
+            <div style="background: #28a745; color: white; padding: 15px; border-radius: 8px; text-align: center; min-width: 120px;">
+                <h3 style="margin: 0; font-size: 24px;"><?php echo $totalProductos; ?></h3>
+                <p style="margin: 5px 0 0 0;">Productos</p>
+            </div>
+            
+            <div style="background: #dc3545; color: white; padding: 15px; border-radius: 8px; text-align: center; min-width: 120px;">
+                <h3 style="margin: 0; font-size: 24px;"><?php echo $productosStockBajo; ?></h3>
+                <p style="margin: 5px 0 0 0;">Stock Bajo</p>
+            </div>
+            
+            <div style="background: #6c757d; color: white; padding: 15px; border-radius: 8px; text-align: center; min-width: 120px;">
+                <h3 style="margin: 0; font-size: 24px;"><?php echo $totalMovimientos; ?></h3>
+                <p style="margin: 5px 0 0 0;">Movimientos</p>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+// Confirmar eliminaciones
+document.addEventListener('DOMContentLoaded', function() {
+    // Agregar confirmación a todos los enlaces de eliminar
+    const deleteLinks = document.querySelectorAll('a[onclick*="confirm"]');
+    deleteLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            if (!confirm('¿Estás seguro de que quieres eliminar este elemento?')) {
+                e.preventDefault();
+            }
+        });
+    });
+});
+</script>
+
 </body>
 </html>
