@@ -135,6 +135,12 @@ if (isset($_GET['mostrar']) && isset($_GET['codigo']) && isset($_GET['nombre']))
     
     $imagen = generarCodigoBarrasEAN13($codigo, $nombre);
     
+    if (!$imagen) {
+    header('Content-Type: text/plain');
+    echo "Error: No se pudo crear la imagen. Verifica que la librería GD esté habilitada en AlwaysData.";
+    exit;
+}
+
     if ($imagen) {
         header('Content-Type: image/png');
         imagepng($imagen);
@@ -142,4 +148,5 @@ if (isset($_GET['mostrar']) && isset($_GET['codigo']) && isset($_GET['nombre']))
         exit;
     }
 }
+
 ?>
