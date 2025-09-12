@@ -192,12 +192,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
             border-radius: 4px;
             cursor: pointer;
             margin: 2px;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 12px;
         }
         
         .btn-primary { background: #007bff; color: white; }
         .btn-success { background: #28a745; color: white; }
         .btn-danger { background: #dc3545; color: white; }
         .btn-warning { background: #ffc107; color: black; }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-barcode { background: #6f42c1; color: white; }
         
         .form-inline {
             display: inline-block;
@@ -212,7 +217,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
         }
         
         .actions-column {
-            min-width: 200px;
+            min-width: 250px;
+        }
+        
+        .barcode-actions {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            margin-top: 5px;
+        }
+        
+        .barcode-preview {
+            max-width: 200px;
+            max-height: 100px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 5px;
+            display: none;
         }
         
         @media (max-width: 768px) {
@@ -352,9 +373,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
                                     <input type='number' name='cantidad' value='".$row['cantidad']."' required style='width: 60px; margin-right: 5px;'>
                                     <button type='submit' name='editar_producto' class='btn btn-success'>Guardar</button>
                                 </form>
-                                <a href='admin.php?eliminar_producto=".$row['id']."' 
-                                   onclick='return confirm(\"¿Eliminar producto?\")' 
-                                   class='btn btn-danger'>Eliminar</a>
+                                <div class='barcode-actions'>
+                                    <a href='admin.php?eliminar_producto=".$row['id']."' 
+                                       onclick='return confirm(\"¿Eliminar producto?\")' 
+                                       class='btn btn-danger'>Eliminar</a>
+                                    <button onclick='previewBarcode(\"".$row['codigo_barras']."\", \"".addslashes($row['nombre'])."\", this)' 
+                                            class='btn btn-info'>Ver Código</button>
+                                    <a href='generar_codigo_barras.php?descargar=1&codigo=".$row['codigo_barras']."&nombre=".urlencode($row['nombre'])."' 
+                                       class='btn btn-barcode'>📥 Descargar PNG</a>
+                                </div>
+                                <img class='barcode-preview' id='preview-".$row['id']."' alt='Código de barras'>
                             </td>
                           </tr>";
                 }
@@ -398,6 +426,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
 </div>
 
 <script>
+// Función para mostrar preview del código de barras
+function previewBarcode(codigo, nombre, button) {
+    const row = button.closest('tr');
+    const preview = row.querySelector('.barcode-preview');
+    
+    if (preview.style.display === 'block') {
+        preview.style.display = 'none';
+        button.textContent = 'Ver Código';
+    } else {
+        preview.src = 'generar_codigo_barras.php?mostrar=1&codigo=' + encodeURIComponent(codigo) + '&nombre=' + encodeURIComponent(nombre);
+        preview.style.display = 'block';
+        button.textContent = 'Ocultar';
+    }
+}
+
 // Confirmar eliminaciones
 document.addEventListener('DOMContentLoaded', function() {
     // Agregar confirmación a todos los enlaces de eliminar
