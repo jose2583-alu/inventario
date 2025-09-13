@@ -93,9 +93,44 @@ if (!$emp) {
             background: #e9ecef;
             border-radius: 5px;
         }
+
+        /* Estilos para la tabla de productos */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background: #f2f2f2;
+        }
+        
+        .section {
+            max-width: 600px;
+            margin: 30px auto;
+        }
+        
+        #toggleProductos {
+            float: right;
+            margin-top: -8px;
+            background: #17a2b8;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 6px 12px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
+    <!-- Audio de confirmación -->
+    <audio id="audio-confirm" src="assets/sounds/confirm.mp3" preload="auto" style="display:none;"></audio>
     <h2>Bienvenido <?php echo htmlspecialchars($emp['nombre']); ?></h2>
 
     <h3>Registrar salida de producto</h3>
@@ -124,10 +159,35 @@ if (!$emp) {
         </div>
     </form>
 
-    <!-- Audio para el sonido de escaneo -->
-    <audio id="beep-sound" preload="auto">
-        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcBTuI1fLReSsEJXnA8N2QQAoUXrTp66hVFApGn+DyvmEcBTuI1fLReSsEJXnA8N2QQAoUXrTp66hVFApGn+DyvmEcBTuI1fLReSsEJXnA8N2QQAoUXrTp66hVFApGn+DyvmEcBTuI1fLReSsEJXnA8N2QQAoUXrTp66hVFApGn+DyvmEcBTuI1fLReSsEJXnA8N2QQAoUXrTp66hVFApGn+DyvmEcBTuI1fLReSsEJXnA8N2QQAoUXrTp66hVFApGn+DyvmEcBTuI1fLReSsEJXnA8N2QQAoUXrTp66hVFApGn+DyvmEcBTuI1fLReSsEJXnA8N2QQAoUXrTp66hVFApGn+DyvmEcBTuI1fLReSsEJXnA8N2QQAoUXrTp66hVFApGn+DyvmEcBTuI1fLReSsEJXnA8N2QQAoUXrTp66hVFApGn+DyvmEcBTuI1fLReSsE" type="audio/wav">
-    </audio>
+    <!-- Lista de productos (solo vista, no editable) -->
+    <div class="section" style="max-width:600px; margin:30px auto;">
+        <h3 style="display:inline-block;">Lista de Productos</h3>
+        <button id="toggleProductos" style="float:right; margin-top:-8px; background:#17a2b8; color:white; border:none; border-radius:5px; padding:6px 12px; cursor:pointer;">Mostrar/Ocultar</button>
+        <div id="productosContainer" style="display:none; margin-top:20px;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr>
+                        <th style="background:#f2f2f2; padding:8px;">Nombre</th>
+                        <th style="background:#f2f2f2; padding:8px;">Cantidad</th>
+                        <th style="background:#f2f2f2; padding:8px;">Precio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    $result = mysqli_query($conn, "SELECT nombre, cantidad, precio FROM productos ORDER BY nombre ASC");
+                    while ($row = mysqli_fetch_assoc($result)) {
+                        echo "<tr>
+                                <td style='padding:8px;'>".htmlspecialchars($row['nombre'])."</td>
+                                <td style='padding:8px; text-align:center;'>".$row['cantidad']."</td>
+                                <td style='padding:8px; text-align:right;'>$".number_format($row['precio'],2)."</td>
+                              </tr>";
+                    }
+                    ?>
+                </tbody>
+            </table>
+        </div>
+        <div style="clear:both;"></div>
+    </div>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -141,28 +201,19 @@ if (!$emp) {
         const productosEscaneados = document.getElementById('productos-escaneados');
         const productosDataInput = document.getElementById('productos_data');
         const btnSave = document.getElementById('btn-registrar');
-        const beepSound = document.getElementById('beep-sound');
         const salidaForm = document.getElementById('salida-form');
+        const audioConfirm = document.getElementById('audio-confirm');
 
         // Verificar que todos los elementos existen
         if (!btnScan || !btnCerrar || !btnLimpiar || !readerDiv || !infoDiv || 
             !productosContainer || !productosEscaneados || !productosDataInput || 
-            !btnSave || !beepSound || !salidaForm) {
+            !btnSave || !salidaForm) {
             console.error('Algunos elementos del DOM no se encontraron');
             return;
         }
 
         let productosMap = new Map(); // Para guardar productos escaneados
         let scanning = false;
-
-        function reproducirSonido() {
-            try {
-                beepSound.currentTime = 0;
-                beepSound.play().catch(e => console.log('No se pudo reproducir el sonido'));
-            } catch (e) {
-                console.log('Error con el sonido:', e);
-            }
-        }
 
         function actualizarListaProductos() {
             productosEscaneados.innerHTML = '';
@@ -277,9 +328,6 @@ if (!$emp) {
                 const codigo = data.codeResult.code;
                 console.log("Código detectado:", codigo);
                 
-                // Reproducir sonido
-                reproducirSonido();
-                
                 infoDiv.textContent = `Código detectado: ${codigo}. Buscando producto...`;
 
                 // Buscar producto por código
@@ -304,6 +352,11 @@ if (!$emp) {
                         
                         actualizarListaProductos();
                         infoDiv.textContent = `✓ ${data.producto.nombre} agregado (Stock disponible: ${data.producto.cantidad})`;
+                        // Reproducir sonido de confirmación
+                        if (audioConfirm) {
+                            audioConfirm.currentTime = 0;
+                            audioConfirm.play();
+                        }
                         
                         // Continuar escaneando sin cerrar
                     } else {
@@ -352,6 +405,19 @@ if (!$emp) {
                 cerrarEscaner();
             }
         });
+
+        // Colapsar/expandir lista de productos
+        const toggleBtn = document.getElementById('toggleProductos');
+        const productosDiv = document.getElementById('productosContainer');
+        let abierto = false;
+        toggleBtn.addEventListener('click', function() {
+            abierto = !abierto;
+            productosDiv.style.display = abierto ? 'block' : 'none';
+            toggleBtn.textContent = abierto ? 'Ocultar' : 'Mostrar';
+        });
+        // Por defecto, oculto
+        productosDiv.style.display = 'none';
+        toggleBtn.textContent = 'Mostrar';
 
         // Inicializar estado
         actualizarListaProductos();
