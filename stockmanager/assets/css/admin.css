@@ -1,4 +1,3 @@
-
 /* === Estilos generales === */
 * {
     margin: 0;
@@ -72,11 +71,12 @@ th, td {
     padding: 12px;
     border: 1px solid #ddd;
     text-align: center;
+    color: #222; /* Cambia el color del texto a negro */
 }
 
 th {
     background: #3498db;
-    color: #fff;
+    color: #111 !important; /* Negro intenso para mejor contraste */
 }
 
 /* === Responsividad === */
