@@ -79,8 +79,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['editar_producto'])) {
     $nombre = mysqli_real_escape_string($conn, $_POST['nombre']);
     $codigo = mysqli_real_escape_string($conn, $_POST['codigo_barras']);
     $cantidad = intval($_POST['cantidad']);
+    $precio = floatval($_POST['precio']);
 
-    $sql = "UPDATE productos SET nombre='$nombre', codigo_barras='$codigo', cantidad=$cantidad WHERE id=$id";
+    $sql = "UPDATE productos SET nombre='$nombre', codigo_barras='$codigo', cantidad=$cantidad, precio=$precio WHERE id=$id";
     if (mysqli_query($conn, $sql)) {
         header("Location: admin.php");
         exit;
@@ -94,6 +95,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
     $nombre = mysqli_real_escape_string($conn, $_POST["nombre"]);
     $codigo = $_POST["codigo"];
     $cantidad = intval($_POST["cantidad"]);
+    $precio = floatval($_POST["precio"]);
     
     // Generar código automáticamente si está vacío
     if (empty($codigo)) {
@@ -135,7 +137,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
     }
 
     if (!isset($check) || $check->num_rows == 0) {
-        $sql = "INSERT INTO productos (nombre, codigo_barras, cantidad) VALUES ('$nombre','$codigo','$cantidad')";
+        $sql = "INSERT INTO productos (nombre, codigo_barras, cantidad, precio) VALUES ('$nombre','$codigo','$cantidad','$precio')";
         if (mysqli_query($conn, $sql)) {
             echo "<p style='color:blue;'>Producto agregado con éxito. Código EAN-13 válido: <b>$codigo</b></p>";
             header("Location: admin.php");
@@ -332,63 +334,72 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
                        style="padding: 8px; width: 220px; margin-right: 10px;" maxlength="13">
                 <input type="number" name="cantidad" placeholder="Cantidad inicial" required 
                        style="padding: 8px; width: 150px; margin-right: 10px;">
+                <input type="number" name="precio" step="0.01" min="0" placeholder="Precio" required 
+                       style="padding: 8px; width: 120px; margin-right: 10px;">
                 <button type="submit" name="agregar_producto" class="btn btn-primary">Guardar</button>
             </div>
             <small style="color: #666;">Puedes ingresar 12 o 13 dígitos. Si ingresas 12, se calculará automáticamente el dígito verificador. Si no ingresas nada, se generará un código EAN-13 completo.</small>
         </form>
     </div>
 
-    <!-- Lista de productos -->
+    <!-- Lista de productos (colapsable) -->
     <div class="section">
-        <h2>Lista de Productos</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Nombre</th>
-                    <th>Código de Barras EAN-13</th>
-                    <th>Cantidad</th>
-                    <th class="actions-column">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php
-                $result = mysqli_query($conn, "SELECT * FROM productos ORDER BY id DESC");
-                while ($row = mysqli_fetch_assoc($result)) {
-                    echo "<tr>
-                            <td data-label='ID'>".$row['id']."</td>
-                            <td data-label='Nombre'>".$row['nombre']."</td>
-                            <td data-label='Código'><strong>".$row['codigo_barras']."</strong></td>
-                            <td data-label='Cantidad'>
-                                <span style='background: ".($row['cantidad'] > 10 ? '#28a745' : ($row['cantidad'] > 0 ? '#ffc107' : '#dc3545'))."; 
-                                      color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px;'>
-                                    ".$row['cantidad']."
-                                </span>
-                            </td>
-                            <td data-label='Acciones' class='actions-column'>
-                                <form method='POST' class='form-inline' style='margin-bottom: 5px;'>
-                                    <input type='hidden' name='id' value='".$row['id']."'>
-                                    <input type='text' name='nombre' value='".$row['nombre']."' required style='width:120px; margin-right: 5px;'>
-                                    <input type='text' name='codigo_barras' value='".$row['codigo_barras']."' required style='width: 110px; margin-right: 5px;' maxlength='13'>
-                                    <input type='number' name='cantidad' value='".$row['cantidad']."' required style='width: 60px; margin-right: 5px;'>
-                                    <button type='submit' name='editar_producto' class='btn btn-success'>Guardar</button>
-                                </form>
-                                <div class='barcode-actions'>
-                                    <a href='admin.php?eliminar_producto=".$row['id']."' 
-                                       onclick='return confirm(\"¿Eliminar producto?\")' 
-                                       class='btn btn-danger'>Eliminar</a>
-                                    <button onclick='previewBarcode(\"".$row['codigo_barras']."\", \"".addslashes($row['nombre'])."\", this)' 
-                                            class='btn btn-info'>Ver Código</button>
-                                    <a href='generar_codigo_barras.php?descargar=1&codigo=".$row['codigo_barras']."&nombre=".urlencode($row['nombre'])."' 
-                                       class='btn btn-barcode'>📥 Descargar PNG</a>
-                                </div>
-                                <img class='barcode-preview' id='preview-".$row['id']."' alt='Código de barras'>
-                            </td>
-                          </tr>";
-                }
-                ?>
-            </tbody>
-        </table>
+        <h2 style="display:inline-block;">Lista de Productos</h2>
+        <button id="toggleProductos" class="btn btn-info" style="float:right; margin-top:-8px;">Mostrar/Ocultar</button>
+        <div id="productosContainer" style="display:none; margin-top:20px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Código de Barras EAN-13</th>
+                        <th>Cantidad</th>
+                        <th>Precio</th>
+                        <th class="actions-column">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    $result = mysqli_query($conn, "SELECT * FROM productos ORDER BY id DESC");
+                    while ($row = mysqli_fetch_assoc($result)) {
+                        echo "<tr>
+                                <td data-label='ID'>".$row['id']."</td>
+                                <td data-label='Nombre'>".$row['nombre']."</td>
+                                <td data-label='Código'><strong>".$row['codigo_barras']."</strong></td>
+                                <td data-label='Cantidad'>
+                                    <span style='background: ".($row['cantidad'] > 10 ? '#28a745' : ($row['cantidad'] > 0 ? '#ffc107' : '#dc3545'))."; 
+                                          color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px;'>
+                                        ".$row['cantidad']."
+                                    </span>
+                                </td>
+                                <td data-label='Precio'>$".number_format($row['precio'],2)."</td>
+                                <td data-label='Acciones' class='actions-column'>
+                                    <form method='POST' class='form-inline' style='margin-bottom: 5px;'>
+                                        <input type='hidden' name='id' value='".$row['id']."'>
+                                        <input type='text' name='nombre' value='".$row['nombre']."' required style='width:120px; margin-right: 5px;'>
+                                        <input type='text' name='codigo_barras' value='".$row['codigo_barras']."' required style='width: 110px; margin-right: 5px;' maxlength='13'>
+                                        <input type='number' name='cantidad' value='".$row['cantidad']."' required style='width: 60px; margin-right: 5px;'>
+                                        <input type='number' name='precio' value='".number_format($row['precio'],2,".","")."' step='0.01' min='0' required style='width: 80px; margin-right: 5px;'>
+                                        <button type='submit' name='editar_producto' class='btn btn-success'>Guardar</button>
+                                    </form>
+                                    <div class='barcode-actions'>
+                                        <a href='admin.php?eliminar_producto=".$row['id']."' 
+                                           onclick='return confirm(\"¿Eliminar producto?\")' 
+                                           class='btn btn-danger'>Eliminar</a>
+                                        <button onclick='previewBarcode(\"".$row['codigo_barras']."\", \"".addslashes($row['nombre'])."\", this, \"".$row['precio']."\")' 
+                                                class='btn btn-info'>Ver Código</button>
+                                        <a href='generar_codigo_barras.php?descargar=1&codigo=".$row['codigo_barras']."&nombre=".urlencode($row['nombre'])."&precio=".$row['precio']."' 
+                                           class='btn btn-barcode'>📥 Descargar PNG</a>
+                                    </div>
+                                    <img class='barcode-preview' id='preview-".$row['id']."' alt='Código de barras'>
+                                </td>
+                              </tr>";
+                    }
+                    ?>
+                </tbody>
+            </table>
+        </div>
+        <div style="clear:both;"></div>
     </div>
 
     <!-- Estadísticas rápidas -->
@@ -427,7 +438,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
 
 <script>
 // Función para mostrar preview del código de barras
-function previewBarcode(codigo, nombre, button) {
+function previewBarcode(codigo, nombre, button, precio) {
     const row = button.closest('tr');
     const preview = row.querySelector('.barcode-preview');
     
@@ -435,7 +446,7 @@ function previewBarcode(codigo, nombre, button) {
         preview.style.display = 'none';
         button.textContent = 'Ver Código';
     } else {
-        preview.src = 'generar_codigo_barras.php?mostrar=1&codigo=' + encodeURIComponent(codigo) + '&nombre=' + encodeURIComponent(nombre);
+        preview.src = 'generar_codigo_barras.php?mostrar=1&codigo=' + encodeURIComponent(codigo) + '&nombre=' + encodeURIComponent(nombre) + '&precio=' + encodeURIComponent(precio);
         preview.style.display = 'block';
         button.textContent = 'Ocultar';
     }
@@ -465,6 +476,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Colapsar/expandir lista de productos
+    const toggleBtn = document.getElementById('toggleProductos');
+    const productosDiv = document.getElementById('productosContainer');
+    let abierto = false;
+    toggleBtn.addEventListener('click', function() {
+        abierto = !abierto;
+        productosDiv.style.display = abierto ? 'block' : 'none';
+        toggleBtn.textContent = abierto ? 'Ocultar' : 'Mostrar';
+    });
+    // Por defecto, oculto
+    productosDiv.style.display = 'none';
+    toggleBtn.textContent = 'Mostrar';
 });
 </script>
 </body>

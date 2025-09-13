@@ -1,6 +1,6 @@
 <?php
 // Función para generar código de barras EAN-13
-function generarCodigoBarrasEAN13($codigo, $nombre_producto = '') {
+function generarCodigoBarrasEAN13($codigo, $nombre_producto = '', $precio = '') {
     // Validar que el código tenga exactamente 13 dígitos
     if (strlen($codigo) !== 13 || !ctype_digit($codigo)) {
         return false;
@@ -63,9 +63,10 @@ function generarCodigoBarrasEAN13($codigo, $nombre_producto = '') {
     $bar_height = 120;
     $text_height = 30;
     $margin = 20;
-    
+    $extra_height = !empty($precio) ? 20 : 0;
+
     $img_width = (strlen($binary) * $bar_width) + (2 * $margin);
-    $img_height = $bar_height + $text_height + (2 * $margin);
+    $img_height = $bar_height + $text_height + (2 * $margin) + $extra_height;
     
     $image = @imagecreate($img_width, $img_height);
     if (!$image) {
@@ -95,17 +96,35 @@ function generarCodigoBarrasEAN13($codigo, $nombre_producto = '') {
     $text_width = imagefontwidth($font_size) * strlen($codigo);
     $text_x = ($img_width - $text_width) / 2;
     $text_y = $margin + $bar_height + 5;
-    
+
     imagestring($image, $font_size, $text_x, $text_y, $codigo, $black);
-    
+
     // Agregar nombre del producto si se proporciona
     if (!empty($nombre_producto)) {
         $font_size_name = 2;
         $name_width = imagefontwidth($font_size_name) * strlen($nombre_producto);
         $name_x = ($img_width - $name_width) / 2;
         $name_y = $text_y + 20;
-        
+
         imagestring($image, $font_size_name, $name_x, $name_y, $nombre_producto, $black);
+
+        // Agregar precio debajo del nombre si existe
+        if (!empty($precio)) {
+            $font_size_price = 2;
+            $precio_text = "Precio: $" . number_format(floatval($precio), 2);
+            $precio_width = imagefontwidth($font_size_price) * strlen($precio_text);
+            $precio_x = ($img_width - $precio_width) / 2;
+            $precio_y = $name_y + 18;
+            imagestring($image, $font_size_price, $precio_x, $precio_y, $precio_text, $black);
+        }
+    } else if (!empty($precio)) {
+        // Si no hay nombre, poner el precio debajo del código
+        $font_size_price = 2;
+        $precio_text = "Precio: $" . number_format(floatval($precio), 2);
+        $precio_width = imagefontwidth($font_size_price) * strlen($precio_text);
+        $precio_x = ($img_width - $precio_width) / 2;
+        $precio_y = $text_y + 20;
+        imagestring($image, $font_size_price, $precio_x, $precio_y, $precio_text, $black);
     }
     
     return $image;
@@ -115,8 +134,9 @@ function generarCodigoBarrasEAN13($codigo, $nombre_producto = '') {
 if (isset($_GET['descargar']) && isset($_GET['codigo']) && isset($_GET['nombre'])) {
     $codigo = trim($_GET['codigo']);
     $nombre = trim($_GET['nombre']);
-    
-    $imagen = generarCodigoBarrasEAN13($codigo, $nombre);
+    $precio = isset($_GET['precio']) ? $_GET['precio'] : '';
+
+    $imagen = generarCodigoBarrasEAN13($codigo, $nombre, $precio);
     
     if ($imagen) {
         // Limpiar buffer de salida antes de enviar cabeceras
@@ -143,8 +163,9 @@ if (isset($_GET['descargar']) && isset($_GET['codigo']) && isset($_GET['nombre']
 if (isset($_GET['mostrar']) && isset($_GET['codigo']) && isset($_GET['nombre'])) {
     $codigo = trim($_GET['codigo']);
     $nombre = trim($_GET['nombre']);
-    
-    $imagen = generarCodigoBarrasEAN13($codigo, $nombre);
+    $precio = isset($_GET['precio']) ? $_GET['precio'] : '';
+
+    $imagen = generarCodigoBarrasEAN13($codigo, $nombre, $precio);
     
     if ($imagen) {
         if (ob_get_length()) ob_end_clean();
