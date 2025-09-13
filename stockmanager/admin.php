@@ -402,6 +402,45 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
         <div style="clear:both;"></div>
     </div>
 
+    <!-- Lista de movimientos (colapsable) -->
+    <div class="section">
+        <h2 style="display:inline-block;">Movimientos</h2>
+        <button id="toggleMovimientos" class="btn btn-info" style="float:right; margin-top:-8px;">Mostrar/Ocultar</button>
+        <div id="movimientosContainer" style="display:none; margin-top:20px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Empleado</th>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Fecha y Hora</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    $sql = "SELECT m.id, e.nombre AS empleado, p.nombre AS producto, m.cantidad, m.fecha
+                            FROM movimientos m
+                            LEFT JOIN empleados e ON m.empleado_id = e.id
+                            LEFT JOIN productos p ON m.producto_id = p.id
+                            ORDER BY m.id DESC";
+                    $result = mysqli_query($conn, $sql);
+                    while ($row = mysqli_fetch_assoc($result)) {
+                        echo "<tr>
+                                <td data-label='ID'>{$row['id']}</td>
+                                <td data-label='Empleado'>{$row['empleado']}</td>
+                                <td data-label='Producto'>{$row['producto']}</td>
+                                <td data-label='Cantidad'>{$row['cantidad']}</td>
+                                <td data-label='Fecha y Hora'>{$row['fecha']}</td>
+                              </tr>";
+                    }
+                    ?>
+                </tbody>
+            </table>
+        </div>
+        <div style="clear:both;"></div>
+    </div>
+
     <!-- Estadísticas rápidas -->
     <div class="section">
         <h2>Estadísticas</h2>
@@ -489,6 +528,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Por defecto, oculto
     productosDiv.style.display = 'none';
     toggleBtn.textContent = 'Mostrar';
+
+    // Colapsar/expandir lista de movimientos
+    const toggleMovBtn = document.getElementById('toggleMovimientos');
+    const movDiv = document.getElementById('movimientosContainer');
+    let movAbierto = false;
+    toggleMovBtn.addEventListener('click', function() {
+        movAbierto = !movAbierto;
+        movDiv.style.display = movAbierto ? 'block' : 'none';
+        toggleMovBtn.textContent = movAbierto ? 'Ocultar' : 'Mostrar';
+    });
+    // Por defecto, oculto
+    movDiv.style.display = 'none';
+    toggleMovBtn.textContent = 'Mostrar';
 });
 </script>
 </body>
