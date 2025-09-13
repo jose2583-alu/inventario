@@ -67,9 +67,16 @@ function generarCodigoBarrasEAN13($codigo, $nombre_producto = '') {
     $img_width = (strlen($binary) * $bar_width) + (2 * $margin);
     $img_height = $bar_height + $text_height + (2 * $margin);
     
-    $image = imagecreate($img_width, $img_height);
-    $white = imagecolorallocate($image, 255, 255, 255);
-    $black = imagecolorallocate($image, 0, 0, 0);
+    $image = @imagecreate($img_width, $img_height);
+    if (!$image) {
+        return false;
+    }
+    $white = @imagecolorallocate($image, 255, 255, 255);
+    $black = @imagecolorallocate($image, 0, 0, 0);
+    if ($white === false || $black === false) {
+        imagedestroy($image);
+        return false;
+    }
     
     // Fondo blanco
     imagefill($image, 0, 0, $white);
@@ -106,12 +113,14 @@ function generarCodigoBarrasEAN13($codigo, $nombre_producto = '') {
 
 // Procesar solicitud de descarga
 if (isset($_GET['descargar']) && isset($_GET['codigo']) && isset($_GET['nombre'])) {
-    $codigo = $_GET['codigo'];
-    $nombre = $_GET['nombre'];
+    $codigo = trim($_GET['codigo']);
+    $nombre = trim($_GET['nombre']);
     
     $imagen = generarCodigoBarrasEAN13($codigo, $nombre);
     
     if ($imagen) {
+        // Limpiar buffer de salida antes de enviar cabeceras
+        if (ob_get_length()) ob_end_clean();
         // Configurar headers para descarga
         $filename = 'codigo_barras_' . $codigo . '.png';
         header('Content-Type: image/png');
@@ -123,30 +132,30 @@ if (isset($_GET['descargar']) && isset($_GET['codigo']) && isset($_GET['nombre']
         imagedestroy($imagen);
         exit;
     } else {
-        echo "Error: Código de barras inválido";
+        if (ob_get_length()) ob_end_clean();
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "Error: Código de barras inválido o error al generar la imagen";
         exit;
     }
 }
 
 // Mostrar imagen en el navegador
 if (isset($_GET['mostrar']) && isset($_GET['codigo']) && isset($_GET['nombre'])) {
-    $codigo = $_GET['codigo'];
-    $nombre = $_GET['nombre'];
+    $codigo = trim($_GET['codigo']);
+    $nombre = trim($_GET['nombre']);
     
     $imagen = generarCodigoBarrasEAN13($codigo, $nombre);
     
-    if (!$imagen) {
-    header('Content-Type: text/plain');
-    echo "Error: No se pudo crear la imagen. Verifica que la librería GD esté habilitada en AlwaysData.";
-    exit;
-}
-
     if ($imagen) {
+        if (ob_get_length()) ob_end_clean();
         header('Content-Type: image/png');
         imagepng($imagen);
         imagedestroy($imagen);
         exit;
+    } else {
+        if (ob_get_length()) ob_end_clean();
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "Error: Código de barras inválido o error al generar la imagen";
+        exit;
     }
 }
-
-?>
