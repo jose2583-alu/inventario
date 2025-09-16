@@ -13,22 +13,26 @@ h2, h3, h4 {
 }
 
 form {
-    max-width: 500px;
+    max-width: 90%;
+    width: 100%;
     margin: 0 auto;
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    padding: 15px;
+    padding: 25px;
 }
 
 #reader {
     width: 100% !important;
-    max-width: 400px;
-    height: 220px !important;
-    margin: 10px auto;
+    max-width: 70%;
+    height: 350px !important;
+    margin: 20px auto;
     display: block;
     border-radius: 8px;
     overflow: hidden;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 .producto-item {
@@ -61,13 +65,14 @@ form {
 .btn-limpiar,
 #btn-scan,
 #btn-registrar {
-    font-size: 1rem;
-    padding: 8px 15px;
-    border-radius: 3px;
+    font-size: 1.2rem;
+    padding: 15px 25px;
+    border-radius: 6px;
     border: none;
-    margin: 5px 0;
+    margin: 10px 0;
     cursor: pointer;
     transition: background 0.2s;
+    font-weight: 500;
 }
 
 .btn-cerrar { background: #dc3545; color: #fff; }
@@ -89,9 +94,9 @@ form {
 .btn-group {
     display: flex;
     justify-content: center;
-    gap: 10px;
+    gap: 20px;
     flex-wrap: wrap;
-    margin: 10px 0;
+    margin: 20px 0;
 }
 
 /* Ajustar botones para alineación horizontal */
@@ -101,43 +106,49 @@ form {
 #btn-registrar {
     /* Eliminar width 100% en móviles para mantener horizontal */
     width: auto;
-    min-width: 110px;
+    min-width: 180px;
     text-align: center;
 }
 
 /* Responsive: en pantallas pequeñas, permitir salto de línea pero mantener centrado */
 @media (max-width: 600px) {
     form {
-        max-width: 98vw;
-        padding: 8px;
+        max-width: 95%;
+        width: 95%;
+        padding: 20px;
     }
     #reader {
-        max-width: 98vw;
-        height: 180px !important;
+        max-width: 90%;
+        height: 280px !important;
     }
     .producto-item {
         flex-direction: column;
         align-items: flex-start;
-        padding: 8px;
+        padding: 15px;
     }
     .producto-nombre {
-        font-size: 1.1rem;
+        font-size: 1.2rem;
     }
     .producto-cantidad {
-        font-size: 1rem;
-        margin-top: 5px;
+        font-size: 1.1rem;
+        margin-top: 8px;
     }
     .btn-cerrar,
     .btn-limpiar,
     #btn-scan,
     #btn-registrar {
-        min-width: 90px;
-        font-size: 1.05rem;
-        margin: 6px 0;
+        min-width: 150px;
+        font-size: 1.3rem;
+        padding: 16px 24px;
+        margin: 10px 0;
     }
     #productos-escaneados {
-        padding: 6px;
-        font-size: 0.98rem;
+        padding: 15px;
+        font-size: 1.1rem;
+    }
+    .btn-group {
+        gap: 15px;
+        margin: 25px 0;
     }
 }
 
