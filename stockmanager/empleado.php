@@ -148,7 +148,6 @@ if (!$emp) {
 <body>
     <!-- Audio de confirmación -->
     <audio id="audio-confirm" src="assets/sounds/confirm.mp3" preload="auto" style="display:none;"></audio>
-    <audio id="audio-error" src="assets/sounds/error.mp3" preload="auto" style="display:none;"></audio>
     
     <h2>Bienvenido <?php echo htmlspecialchars($emp['nombre']); ?></h2>
 
@@ -189,7 +188,7 @@ if (!$emp) {
     <!-- Lista de productos (solo vista, no editable) -->
     <div class="section" style="max-width:600px; margin:30px auto;">
         <h3 style="display:inline-block;">Lista de Productos</h3>
-        <button id="toggleProductos" style="float:right; margin-top:-8px; background:#17a2b8; color:white; border:none; border-radius:5px; padding:6px 12px; cursor:pointer;">Mostrar/Ocultar</button>
+        <button id="toggleProductos" class="toggle-productos-btn" style="float:right; margin-top:-8px;">Mostrar/Ocultar</button>
         <div id="productosContainer" style="display:none; margin-top:20px;">
             <table style="width:100%; border-collapse:collapse;">
                 <thead>
@@ -292,11 +291,10 @@ if (!$emp) {
                         <small>Código: ${data.codigo}</small>
                     </div>
                     <div>
-                        <button type="button" onclick="cambiarCantidad(${productoId}, -1)" style="margin-right:5px; background:#ffc107; color:black; border:none; border-radius:3px; padding:2px 8px; font-weight:bold;">&lt;</button>
+                        <button type="button" class="producto-control-btn" onclick="cambiarCantidad(${productoId}, -1)" style="background:#ffc107; color:black;">&lt;</button>
                         <span class="producto-cantidad">${data.cantidad}x</span>
-                        <button type="button" onclick="cambiarCantidad(${productoId}, 1)" style="margin-left:5px; background:#28a745; color:white; border:none; border-radius:3px; padding:2px 8px; font-weight:bold;">&gt;</button>
-                        <button type="button" onclick="eliminarProducto(${productoId})" 
-                            style="margin-left: 8px; background: #dc3545; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer;">×</button>
+                        <button type="button" class="producto-control-btn" onclick="cambiarCantidad(${productoId}, 1)" style="background:#28a745; color:white;">&gt;</button>
+                        <button type="button" class="producto-eliminar-btn" onclick="eliminarProducto(${productoId})">×</button>
                     </div>
                 `;
                 productosEscaneados.appendChild(div);
