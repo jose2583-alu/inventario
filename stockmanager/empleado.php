@@ -172,6 +172,7 @@ if (!$emp) {
         <div id="productos-container" style="display:none;">
             <h4>Productos escaneados:</h4>
             <div id="productos-escaneados"></div>
+            <div id="total-a-cobrar" style="font-size:18px; font-weight:bold; margin-top:10px; color:#007bff;">Total: $0.00</div>
             <div class="btn-group">
                 <button type="button" id="btn-limpiar" class="btn-limpiar">Limpiar lista</button>
             </div>
@@ -266,16 +267,19 @@ if (!$emp) {
 
         function actualizarListaProductos() {
             console.log('Actualizando lista de productos:', productosMap);
-            
+
             productosEscaneados.innerHTML = '';
-            
+
+            let total = 0;
+
             if (productosMap.size === 0) {
                 productosContainer.style.display = 'none';
                 btnSave.disabled = true;
                 productosDataInput.value = '';
+                document.getElementById('total-a-cobrar').textContent = 'Total: $0.00';
                 return;
             }
-            
+
             productosContainer.style.display = 'block';
             btnSave.disabled = false;
 
@@ -294,7 +298,13 @@ if (!$emp) {
                     </div>
                 `;
                 productosEscaneados.appendChild(div);
+
+                // Sumar al total (precio * cantidad)
+                total += (parseFloat(data.precio || 0) * data.cantidad);
             });
+
+            // Mostrar el total formateado
+            document.getElementById('total-a-cobrar').textContent = 'Total: $' + total.toFixed(2);
 
             // Preparar datos para envío
             const productosArray = Array.from(productosMap.values()).map(data => ({
@@ -302,7 +312,7 @@ if (!$emp) {
                 nombre: data.nombre,
                 cantidad: data.cantidad
             }));
-            
+
             productosDataInput.value = JSON.stringify(productosArray);
             console.log('Datos preparados para envío:', productosDataInput.value);
         }
@@ -395,7 +405,8 @@ if (!$emp) {
                                 nombre: data.producto.nombre,
                                 codigo: codigo,
                                 cantidad: 1,
-                                stock: stockActual
+                                stock: stockActual,
+                                precio: parseFloat(data.producto.precio || 0) // <--- agrega esto
                             };
                             productosMap.set(productoId, nuevoProducto);
                             console.log('Producto agregado:', nuevoProducto);
