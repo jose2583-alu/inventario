@@ -205,6 +205,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
         .btn-warning { background: #ffc107; color: black; }
         .btn-info { background: #17a2b8; color: white; }
         .btn-barcode { background: #6f42c1; color: white; }
+        .btn-sm { padding: 4px 8px; font-size: 11px; }
         
         .form-inline {
             display: inline-block;
@@ -237,6 +238,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
             margin-top: 5px;
             display: none;
         }
+        
+        .detalle-movimiento {
+            background-color: #f8f9fa;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .detalle-movimiento table {
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .badge-success { background: #28a745; color: white; }
+        .badge-warning { background: #ffc107; color: black; }
+        .badge-danger { background: #dc3545; color: white; }
         
         @media (max-width: 768px) {
             table, thead, tbody, th, td, tr {
@@ -362,15 +384,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
                     <?php
                     $result = mysqli_query($conn, "SELECT * FROM productos ORDER BY id DESC");
                     while ($row = mysqli_fetch_assoc($result)) {
+                        $badgeClass = $row['cantidad'] > 10 ? 'badge-success' : ($row['cantidad'] > 0 ? 'badge-warning' : 'badge-danger');
                         echo "<tr>
                                 <td data-label='ID'>".$row['id']."</td>
                                 <td data-label='Nombre'>".$row['nombre']."</td>
                                 <td data-label='Código'><strong>".$row['codigo_barras']."</strong></td>
                                 <td data-label='Cantidad'>
-                                    <span style='background: ".($row['cantidad'] > 10 ? '#28a745' : ($row['cantidad'] > 0 ? '#ffc107' : '#dc3545'))."; 
-                                          color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px;'>
-                                        ".$row['cantidad']."
-                                    </span>
+                                    <span class='badge $badgeClass'>".$row['cantidad']."</span>
                                 </td>
                                 <td data-label='Precio'>$".number_format($row['precio'],2)."</td>
                                 <td data-label='Acciones' class='actions-column'>
@@ -402,36 +422,73 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
         <div style="clear:both;"></div>
     </div>
 
-    <!-- Lista de movimientos (colapsable) -->
+    <!-- Lista de movimientos (colapsable) - VERSIÓN MEJORADA -->
     <div class="section">
-        <h2 style="display:inline-block;">Movimientos</h2>
+        <h2 style="display:inline-block;">Movimientos Agrupados</h2>
         <button id="toggleMovimientos" class="btn btn-info" style="float:right; margin-top:-8px;">Mostrar/Ocultar</button>
         <div id="movimientosContainer" style="display:none; margin-top:20px;">
             <table>
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>ID Movimiento</th>
                         <th>Empleado</th>
-                        <th>Producto</th>
-                        <th>Cantidad</th>
                         <th>Fecha y Hora</th>
+                        <th>Total Productos</th>
+                        <th>Total Cobrado</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php
-                    $sql = "SELECT m.id, e.nombre AS empleado, p.nombre AS producto, m.cantidad, m.fecha
-                            FROM movimientos m
-                            LEFT JOIN empleados e ON m.empleado_id = e.id
-                            LEFT JOIN productos p ON m.producto_id = p.id
-                            ORDER BY m.id DESC";
+                    <?php                     
+                    // Verificar si existe la tabla nueva
+                    $tableCheck = mysqli_query($conn, "SHOW TABLES LIKE 'movimientos_cabecera'");
+                    
+                    if (mysqli_num_rows($tableCheck) > 0) {
+                        // Nueva estructura
+                        $sql = "SELECT mc.id, 
+                                       e.nombre AS empleado, 
+                                       mc.fecha,
+                                       mc.total_productos,
+                                       mc.total_valor
+                                FROM movimientos_cabecera mc                             
+                                LEFT JOIN empleados e ON mc.empleado_id = e.id                             
+                                ORDER BY mc.id DESC";
+                    } else {
+                        // Estructura antigua - mostrar mensaje para actualizar
+                        echo "<tr><td colspan='6' style='text-align:center; padding:20px; background:#fff3cd; border:2px solid #ffeaa7;'>
+                                <strong>⚠️ Base de datos no actualizada</strong><br>
+                                Para usar los movimientos agrupados, ejecuta el script SQL de actualización.
+                              </td></tr>";
+                        $sql = "SELECT 1 WHERE 0"; // Query vacía para evitar errores
+                    }
+                    
                     $result = mysqli_query($conn, $sql);
+                    
                     while ($row = mysqli_fetch_assoc($result)) {
                         echo "<tr>
-                                <td data-label='ID'>{$row['id']}</td>
+                                <td data-label='ID'><strong>#{$row['id']}</strong></td>
                                 <td data-label='Empleado'>{$row['empleado']}</td>
-                                <td data-label='Producto'>{$row['producto']}</td>
-                                <td data-label='Cantidad'>{$row['cantidad']}</td>
                                 <td data-label='Fecha y Hora'>{$row['fecha']}</td>
+                                <td data-label='Total Productos' style='text-align:center;'>{$row['total_productos']} unidades</td>
+                                <td data-label='Total Cobrado' style='font-weight:bold; color:green;'>$".number_format($row['total_valor'],2)."</td>
+                                <td data-label='Acciones'>
+                                    <button onclick='verDetalleMovimiento({$row['id']})' class='btn btn-info btn-sm'>Ver Detalle</button>
+                                </td>
+                              </tr>";
+                        
+                        // Fila oculta con detalles
+                        echo "<tr id='detalle-{$row['id']}' style='display:none;' class='detalle-movimiento'>
+                                <td colspan='6'>
+                                    <div style='padding:15px;'>
+                                        <h4>📋 Detalle del Movimiento #{$row['id']}</h4>
+                                        <div id='detalle-contenido-{$row['id']}'>
+                                            <div style='text-align:center; padding:20px;'>
+                                                <div class='spinner'></div>
+                                                Cargando detalles...
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
                               </tr>";
                     }
                     ?>
@@ -441,7 +498,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
         <div style="clear:both;"></div>
     </div>
 
-    <!-- Estadísticas rápidas -->
+    <!-- Estadísticas mejoradas -->
     <div class="section">
         <h2>Estadísticas</h2>
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
@@ -449,7 +506,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
             $totalEmpleados = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM empleados"))['total'];
             $totalProductos = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM productos"))['total'];
             $productosStockBajo = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM productos WHERE cantidad <= 5"))['total'];
-            $totalMovimientos = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM movimientos"))['total'];
+            
+            // Verificar si existe la tabla nueva para estadísticas
+            $tableCheck = mysqli_query($conn, "SHOW TABLES LIKE 'movimientos_cabecera'");
+            if (mysqli_num_rows($tableCheck) > 0) {
+                $totalMovimientos = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM movimientos_cabecera"))['total'];
+                $ventasHoy = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(total_valor), 0) as total FROM movimientos_cabecera WHERE DATE(fecha) = CURDATE()"))['total'];
+            } else {
+                $totalMovimientos = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM movimientos"))['total'];
+                $ventasHoy = 0;
+            }
             ?>
             
             <div style="background: #007bff; color: white; padding: 15px; border-radius: 8px; text-align: center; min-width: 120px;">
@@ -471,6 +537,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['agregar_producto'])) {
                 <h3 style="margin: 0; font-size: 24px;"><?php echo $totalMovimientos; ?></h3>
                 <p style="margin: 5px 0 0 0;">Movimientos</p>
             </div>
+            
+            <div style="background: #17a2b8; color: white; padding: 15px; border-radius: 8px; text-align: center; min-width: 120px;">
+                <h3 style="margin: 0; font-size: 18px;">$<?php echo number_format($ventasHoy, 2); ?></h3>
+                <p style="margin: 5px 0 0 0;">Ventas Hoy</p>
+            </div>
         </div>
     </div>
 </div>
@@ -488,6 +559,30 @@ function previewBarcode(codigo, nombre, button, precio) {
         preview.src = 'generar_codigo_barras.php?mostrar=1&codigo=' + encodeURIComponent(codigo) + '&nombre=' + encodeURIComponent(nombre) + '&precio=' + encodeURIComponent(precio);
         preview.style.display = 'block';
         button.textContent = 'Ocultar';
+    }
+}
+
+// Función para ver detalle de movimiento
+function verDetalleMovimiento(movimientoId) {
+    const detalleRow = document.getElementById('detalle-' + movimientoId);
+    const contenido = document.getElementById('detalle-contenido-' + movimientoId);
+    
+    if (detalleRow.style.display === 'none') {
+        // Mostrar detalle
+        detalleRow.style.display = 'table-row';
+        
+        // Cargar detalles via AJAX
+        fetch('obtener_detalle_movimiento.php?id=' + movimientoId)
+            .then(response => response.text())
+            .then(data => {
+                contenido.innerHTML = data;
+            })
+            .catch(error => {
+                contenido.innerHTML = '<p style="color:red;">❌ Error al cargar los detalles</p>';
+            });
+    } else {
+        // Ocultar detalle
+        detalleRow.style.display = 'none';
     }
 }
 
@@ -541,6 +636,28 @@ document.addEventListener('DOMContentLoaded', function() {
     // Por defecto, oculto
     movDiv.style.display = 'none';
     toggleMovBtn.textContent = 'Mostrar';
+    function verDetalleMovimiento(movimientoId) {
+    const detalleRow = document.getElementById('detalle-' + movimientoId);
+    const contenido = document.getElementById('detalle-contenido-' + movimientoId);
+    
+    if (detalleRow.style.display === 'none') {
+        // Mostrar detalle
+        detalleRow.style.display = 'table-row';
+        
+        // Cargar detalles via AJAX
+        fetch('obtener_detalle_movimiento.php?id=' + movimientoId)
+            .then(response => response.text())
+            .then(data => {
+                contenido.innerHTML = data;
+            })
+            .catch(error => {
+                contenido.innerHTML = '<p style="color:red;">Error al cargar los detalles</p>';
+            });
+    } else {
+        // Ocultar detalle
+        detalleRow.style.display = 'none';
+    }
+}
 });
 </script>
 </body>
