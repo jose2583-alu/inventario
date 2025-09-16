@@ -292,9 +292,11 @@ if (!$emp) {
                         <small>Código: ${data.codigo}</small>
                     </div>
                     <div>
+                        <button type="button" onclick="cambiarCantidad(${productoId}, -1)" style="margin-right:5px; background:#ffc107; color:black; border:none; border-radius:3px; padding:2px 8px; font-weight:bold;">&lt;</button>
                         <span class="producto-cantidad">${data.cantidad}x</span>
+                        <button type="button" onclick="cambiarCantidad(${productoId}, 1)" style="margin-left:5px; background:#28a745; color:white; border:none; border-radius:3px; padding:2px 8px; font-weight:bold;">&gt;</button>
                         <button type="button" onclick="eliminarProducto(${productoId})" 
-                            style="margin-left: 5px; background: #dc3545; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer;">×</button>
+                            style="margin-left: 8px; background: #dc3545; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer;">×</button>
                     </div>
                 `;
                 productosEscaneados.appendChild(div);
@@ -319,6 +321,29 @@ if (!$emp) {
 
         window.eliminarProducto = function(productoId) {
             productosMap.delete(productoId);
+            actualizarListaProductos();
+        }
+
+        window.cambiarCantidad = function(productoId, delta) {
+            const producto = productosMap.get(productoId);
+            if (!producto) return;
+
+            let nuevaCantidad = producto.cantidad + delta;
+
+            if (nuevaCantidad < 1) nuevaCantidad = 1;
+            if (nuevaCantidad > producto.stock) {
+                nuevaCantidad = producto.stock;
+                mostrarMensaje(`❌ Stock agotado para ${producto.nombre}`, 'error');
+                if (audioError) {
+                    audioError.currentTime = 0;
+                    audioError.play().catch(e => {});
+                }
+            } else if (producto.stock - nuevaCantidad < 5) {
+                mostrarMensaje(`⚠️ Stock bajo (${producto.stock - nuevaCantidad}) para ${producto.nombre}`, 'error');
+            }
+
+            producto.cantidad = nuevaCantidad;
+            productosMap.set(productoId, producto);
             actualizarListaProductos();
         }
 
