@@ -1,5 +1,6 @@
 <?php
 // generar_reporte_mes.php
+date_default_timezone_set('America/Mexico_City');
 include("conexion.php");
 header('Content-Type: text/html; charset=utf-8');
 
@@ -100,4 +101,5 @@ $displayEnd = DateTime::createFromFormat('Y-m-d', $end)->format('d/m/Y');
         Total vendido en el mes: $ <?php echo number_format($total_mes, 2); ?>
     </div>
 </body>
+
 </html>
