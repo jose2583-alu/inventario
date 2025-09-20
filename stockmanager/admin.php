@@ -1,7 +1,7 @@
 <?php
 // admin.php - versión corregida
 session_start();
-
+date_default_timezone_set('America/Mexico_City');
 // En desarrollo puedes activar errores (quítalo en producción)
 // ini_set('display_errors', 1); error_reporting(E_ALL);
 
