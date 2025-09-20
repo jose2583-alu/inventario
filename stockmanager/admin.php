@@ -345,7 +345,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['agregar_producto'])) 
                         $codigo_barras = htmlspecialchars($row['codigo_barras'], ENT_QUOTES, 'UTF-8');
                         $cantidad = intval($row['cantidad']);
                         $precio = number_format(floatval($row['precio']), 2, ".", "");
-                        $badgeClass = $cantidad > 10 ? 'badge-success' : ($cantidad > 0 ? 'badge-warning' : 'badge-danger');
+                        $badgeClass = $cantidad > 5 ? 'badge-success' : ($cantidad > 0 ? 'badge-warning' : 'badge-danger');
 
                         echo "<tr>
                                 <td data-label='ID'>{$id}</td>
