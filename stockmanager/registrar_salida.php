@@ -1,5 +1,9 @@
 <?php
 session_start();
+
+// CONFIGURAR ZONA HORARIA ANTES DE CUALQUIER OPERACIÓN
+date_default_timezone_set('America/Mexico_City');
+
 include "conexion.php";
 
 // 1. Verificar sesión
@@ -32,14 +36,18 @@ if (!$productos || !is_array($productos)) {
     die("Datos de productos inválidos.");
 }
 
-// 4. Procesar movimiento agrupado en transacción
+// 4. Obtener timestamp actual en zona horaria de México
+$fechaActual = date('Y-m-d H:i:s');
+error_log("Registrando movimiento en fecha/hora México: " . $fechaActual);
+
+// 5. Procesar movimiento agrupado en transacción
 $conn->begin_transaction();
 try {
     $productosValidos = [];
     $totalProductos = 0;
     $totalValor = 0;
     
-    // 4.1. Validar todos los productos primero
+    // 5.1. Validar todos los productos primero
     foreach ($productos as $producto) {
         $productoId = (int)$producto['id'];
         $cantidad = (int)$producto['cantidad'];
@@ -86,12 +94,12 @@ try {
         throw new Exception("No se encontraron productos válidos para registrar.");
     }
     
-    // 4.2. Crear movimiento cabecera
+    // 5.2. Crear movimiento cabecera con fecha/hora específica de México
     $stmt = $conn->prepare(
         "INSERT INTO movimientos_cabecera (empleado_id, fecha, total_productos, total_valor) 
-         VALUES (?, NOW(), ?, ?)"
+         VALUES (?, ?, ?, ?)"
     );
-    $stmt->bind_param("iid", $empleadoId, $totalProductos, $totalValor);
+    $stmt->bind_param("isid", $empleadoId, $fechaActual, $totalProductos, $totalValor);
     $stmt->execute();
     $movimientoId = $conn->insert_id;
     $stmt->close();
@@ -100,7 +108,7 @@ try {
         throw new Exception("Error al crear el movimiento principal.");
     }
     
-    // 4.3. Procesar cada producto válido
+    // 5.3. Procesar cada producto válido
     $productosRegistrados = 0;
     foreach ($productosValidos as $producto) {
         // Insertar detalle del movimiento
@@ -129,10 +137,14 @@ try {
     
     $conn->commit();
     
+    // Log para verificar
+    error_log("Movimiento registrado exitosamente con fecha México: " . $fechaActual);
+    
     // Mensaje de éxito con detalles
     $mensaje = "Movimiento registrado exitosamente!\\n";
     $mensaje .= "ID Movimiento: $movimientoId\\n";
     $mensaje .= "Empleado: $nombreEmpleado\\n";
+    $mensaje .= "Fecha/Hora: " . date('d/m/Y H:i:s', strtotime($fechaActual)) . "\\n";
     $mensaje .= "Productos registrados: $productosRegistrados\\n";
     $mensaje .= "Total cantidad: $totalProductos unidades\\n";
     $mensaje .= "Valor total: $" . number_format($totalValor, 2);
@@ -142,6 +154,7 @@ try {
     
 } catch (Exception $e) {
     $conn->rollback();
+    error_log("Error en registro de movimiento: " . $e->getMessage());
     die("Error: " . $e->getMessage());
 }
 ?>
